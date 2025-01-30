@@ -1,0 +1,55 @@
+image: docker:20-dind
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - format
+  - lint
+  - deploy
+  - docs
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+build:
+  stage: build
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build -t registry.gitlab.com/urfu2401042/mlops_hw1 .
+    - docker push registry.gitlab.com/urfu2401042/mlops_hw1
+
+format:
+  stage: format
+  image: registry.gitlab.com/urfu2401042/mlops_hw1
+  script:
+    - black .
+
+lint:
+  stage: lint
+  image: registry.gitlab.com/urfu2401042/mlops_hw1
+  script:
+    - flake8 .
+
+deploy:
+  stage: deploy
+  image: docker:20-dind
+  services:
+    - docker:dind
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker pull registry.gitlab.com/urfu2401042/mlops_hw1
+    - docker run -d -p 80:80 registry.gitlab.com/urfu2401042/mlops_hw1
+
+docs:
+  stage: docs
+  image: registry.gitlab.com/urfu2401042/mlops_hw1
+  script:
+    - quarto render EDA.ipynb --to html
+    - mkdir -p public
+    - mv EDA.html public/
+  artifacts:
+    paths:
+      - public
